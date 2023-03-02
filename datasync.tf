@@ -9,7 +9,7 @@ resource "aws_cloudformation_stack" "datasync" {
   name = "datasync"
   capabilities = ["CAPABILITY_IAM"]
   parameters = var.datasync_parameters
-  template_body = "${file("${path.module}/iam.yaml")}"
+  template_body = "${file("${path.module}/s3-datasync.yaml")}"
 }
 
 output "datasync_outputs" {
