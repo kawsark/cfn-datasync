@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  SrcBucketName:
+    Description: Name of existing bucket
+    Type: String
+  DestBucketName:
+    Description: Name of existing bucket
+    Type: String
+
+Resources:
+  S3AccessRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "datasync.amazonaws.com"
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                - 's3:GetBucketLocation'
+                - 's3:ListBucket'
+                - 's3:ListBucketMultipartUploads'
+                Resource: 
+                  - !Sub
+                    - 'arn:aws:s3:::${SrcBucketName}'
+                    - Bucket: !Ref SrcBucketName
+                  - !Sub
+                    - 'arn:aws:s3:::${DestBucketName}'
+                    - Bucket: !Ref DestBucketName
+                  
+              - Effect: Allow
+                Action: 
+                - 's3:AbortMultipartUpload'
+                - 's3:DeleteObject'
+                - 's3:GetObject'
+                - 's3:ListMultipartUploadParts'
+                - 's3:PutObjectTagging'
+                - 's3:GetObjectTagging'
+                - 's3:PutObject'
+                Resource:
+                  - !Sub
+                    - 'arn:aws:s3:::${SrcBucketName}/*'
+                    - Bucket: !Ref SrcBucketName
+                  - !Sub
+                    - 'arn:aws:s3:::${DestBucketName}/*'
+                    - Bucket: !Ref DestBucketName
+
+  SrcDataSyncLocationS3:
+    Type: AWS::DataSync::LocationS3
+    Properties: 
+      S3BucketArn: !Sub
+        - 'arn:aws:s3:::${SrcBucketName}'
+        - Bucket: !Ref SrcBucketName
+      S3Config: 
+        BucketAccessRoleArn: !GetAtt S3AccessRole.Arn
+      Tags: 
+        - Key: DataSyncLocation
+          Value: Dest
+
+  DestDataSyncLocationS3:
+    Type: AWS::DataSync::LocationS3
+    Properties: 
+      S3BucketArn: !Sub
+        - 'arn:aws:s3:::${DestBucketName}'
+        - Bucket: !Ref DestBucketName
+      S3Config: 
+        BucketAccessRoleArn: !GetAtt S3AccessRole.Arn
+      Tags: 
+        - Key: DataSyncLocation
+          Value: Dest
+
+  DataSyncTask:
+    Type: AWS::DataSync::Task
+    Properties:
+      SourceLocationArn: !GetAtt SrcDataSyncLocationS3.LocationArn
+      DestinationLocationArn: !GetAtt DestDataSyncLocationS3.LocationArn
